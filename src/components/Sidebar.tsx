@@ -9,11 +9,13 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: "⊞" },
   { label: "Resume Studio", href: "/dashboard/resume", icon: "📄" },
   { label: "Job Matches", href: "/dashboard/jobs", icon: "🎯" },
+  { label: "Saved Jobs", href: "/dashboard/saved", icon: "★" },
   { label: "Tracker", href: "/dashboard/tracker", icon: "📋" },
+  { label: "Interview Prep", href: "/dashboard/interview", icon: "🎤" },
   { label: "Settings", href: "/dashboard/settings", icon: "⚙️" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = true, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const [user, setUser] = useState<{ name: string; email: string } | null>(
     null
@@ -35,7 +37,21 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 border-r border-slate-800 flex flex-col shrink-0">
+    <>
+      {/* Mobile overlay */}
+      {isOpen && onClose && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside className={`
+        fixed md:relative z-40 md:z-auto
+        w-64 h-full md:min-h-screen
+        bg-slate-900 border-r border-slate-800 flex flex-col shrink-0
+        transition-transform duration-300 ease-in-out
+        ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+      `}>
       <div className="px-6 py-6 border-b border-slate-800">
         <span className="text-xl font-bold text-blue-400">JobHunt4U</span>
         <p className="text-xs text-slate-500 mt-0.5">AI Career Copilot</p>
@@ -51,6 +67,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => onClose?.()}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                 isActive
                   ? "bg-blue-600/20 text-blue-400 font-medium"
@@ -78,5 +95,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

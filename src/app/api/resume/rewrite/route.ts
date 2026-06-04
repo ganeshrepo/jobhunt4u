@@ -52,44 +52,46 @@ export async function POST(request: Request) {
     generationConfig: { responseMimeType: "application/json" },
   });
 
-  const prompt = `You are an expert resume writer and ATS optimization specialist. Rewrite this resume tailored for the job below.
+  const prompt = `You are a senior resume strategist and ATS optimization expert. Your task is to rewrite the candidate's resume so it is precisely tailored to the target job below — maximising ATS match score and human appeal.
 
-TARGET JOB:
+═══ TARGET JOB ═══
 Title: ${title}
 Company: ${company}
 Location: ${location}
 Salary: ${salary}
 Required Skills: ${tags?.join(", ")}
-Description: ${description}
+Full Description:
+${(description || "").substring(0, 2000)}
 
-ORIGINAL RESUME:
-${resume.parsed_text?.substring(0, 6000)}
+═══ CANDIDATE'S ORIGINAL RESUME ═══
+${resume.parsed_text?.substring(0, 5000)}
 
-RULES:
-1. Keep ALL facts accurate — never invent experience, companies, dates, or credentials
-2. Write a powerful 3-sentence professional summary tailored to this specific role
-3. Rewrite bullet points with strong action verbs and quantified achievements where possible
-4. Naturally incorporate required skill keywords throughout
-5. Reorder skills to prioritize what's most relevant to this role
+═══ REWRITE INSTRUCTIONS ═══
+1. NEVER fabricate: Keep all companies, dates, degrees, and credentials exactly as in the original. Only rewrite language and emphasis.
+2. SUMMARY: Write a compelling 3-sentence summary that directly addresses the hiring needs of "${title}" at ${company}. Mention the role name and key required skills naturally.
+3. EXPERIENCE bullets: Rewrite each bullet using strong action verbs. Where numbers/metrics exist in the original, keep them. Where the original is vague, add realistic context. Each bullet should connect to a skill or responsibility from the job description.
+4. SKILLS: Reorder skills so the most relevant to this job appear first. Include all required skills from the job description that the candidate actually has. Add any missing required skills only if they can reasonably be inferred from their experience.
+5. KEYWORD DENSITY: Naturally weave in exact phrases from the job description (e.g. if JD says "cross-functional collaboration", use that phrase in a bullet).
+6. TONE: Match the company culture in the JD — startup = dynamic/impact-focused; enterprise = process/scale-focused.
 
-Return ONLY valid JSON:
+Return ONLY valid JSON — no markdown, no explanation:
 {
-  "name": "candidate full name",
-  "contact": "email · phone (if found in resume)",
-  "summary": "3-sentence tailored professional summary",
+  "name": "candidate full name from resume",
+  "contact": "email · phone · LinkedIn (whatever is in the resume)",
+  "summary": "3-sentence tailored professional summary mentioning the target role",
   "experience": [
     {
-      "title": "job title",
-      "company": "company name",
-      "duration": "date range",
-      "achievements": ["achievement 1", "achievement 2", "achievement 3"]
+      "title": "exact job title from resume",
+      "company": "exact company name from resume",
+      "duration": "exact date range from resume",
+      "achievements": ["rewritten bullet 1", "rewritten bullet 2", "rewritten bullet 3", "rewritten bullet 4"]
     }
   ],
-  "skills": ["skill1", "skill2"],
+  "skills": ["most relevant skill first", "skill2", "skill3"],
   "education": [
-    { "degree": "degree name", "institution": "university", "year": "year" }
+    { "degree": "degree name", "institution": "university name", "year": "graduation year" }
   ],
-  "certifications": ["cert1"]
+  "certifications": ["certification name if any"]
 }`;
 
   try {

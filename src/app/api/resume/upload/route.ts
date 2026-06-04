@@ -129,7 +129,7 @@ ${parsedText.substring(0, 8000)}`;
   // Save to DB
   const { data: resumeData, error: dbError } = await supabase
     .from("resumes")
-    .upsert({
+    .insert({
       user_id: user.id,
       file_name: file.name,
       file_url: publicUrl,

@@ -16,40 +16,46 @@ const SOURCES = [
 export async function getJobMatches(
   profile: CandidateProfile
 ): Promise<{ jobs: JobListing[]; source: string }> {
-  let jobs: JobListing[] = [];
-  let usedSource = "";
+  // Fetch from all available sources simultaneously
+  const settled = await Promise.allSettled(
+    SOURCES.filter((s) => s.envCheck()).map((s) =>
+      s.fn(profile).then((jobs) => ({ name: s.name, jobs }))
+    )
+  );
 
-  for (const source of SOURCES) {
-    if (!source.envCheck()) {
-      console.log(`Skipping ${source.name} — credentials not set`);
-      continue;
-    }
-    try {
-      jobs = await source.fn(profile);
-      if (jobs.length > 0) {
-        usedSource = source.name;
-        console.log(`Fetched ${jobs.length} jobs from ${source.name}`);
-        break;
-      }
-    } catch (err) {
-      console.log(
-        `${source.name} failed:`,
-        err instanceof Error ? err.message : err
-      );
-    }
-  }
+  const successful = settled
+    .filter((r): r is PromiseFulfilledResult<{ name: string; jobs: JobListing[] }> =>
+      r.status === "fulfilled" && r.value.jobs.length > 0
+    )
+    .map((r) => r.value);
 
-  // Final fallback: Gemini AI
-  if (jobs.length === 0) {
+  settled
+    .filter((r) => r.status === "rejected")
+    .forEach((r) => console.log("Source failed:", (r as PromiseRejectedResult).reason?.message));
+
+  let allJobs = successful.flatMap((s) => s.jobs);
+
+  // Gemini fallback only if every real source failed
+  if (allJobs.length === 0) {
     console.log("All real APIs failed — using Gemini fallback");
-    jobs = await generateJobsWithGemini(profile);
-    usedSource = "Gemini AI";
+    const geminiJobs = await generateJobsWithGemini(profile);
+    return { jobs: geminiJobs, source: "Gemini AI" };
   }
 
-  // Score real jobs against resume (Gemini-generated jobs already have scores)
-  if (usedSource !== "Gemini AI" && jobs.length > 0) {
-    jobs = await scoreJobs(jobs, profile);
-  }
+  // Deduplicate by normalised title+company
+  const seen = new Set<string>();
+  allJobs = allJobs.filter((job) => {
+    const key = `${job.title.toLowerCase().trim()}-${job.company.toLowerCase().trim()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-  return { jobs, source: usedSource };
+  // Score all jobs against the resume (cap at 20 to keep Gemini cost low)
+  allJobs = await scoreJobs(allJobs.slice(0, 20), profile);
+
+  const sourceNames = successful.map((s) => s.name);
+  const sourceLabel = sourceNames.length > 1 ? "Multiple" : sourceNames[0] ?? "Unknown";
+
+  return { jobs: allJobs, source: sourceLabel };
 }
