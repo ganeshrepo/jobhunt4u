@@ -27,15 +27,15 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const monthlyPrice = 9;
-  const annualMonthlyPrice = 7.5;
-  const annualTotal = 90;
+  const monthlyPrice = 749;
+  const annualMonthlyPrice = 599;
+  const annualTotal = 7188;
 
   async function handleUpgrade() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch("/api/razorpay/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ annual }),
@@ -169,14 +169,14 @@ export default function PricingPage() {
             <div className="mb-8">
               <div className="flex items-end gap-1">
                 <span className="text-5xl font-bold text-white">
-                  ${annual ? annualMonthlyPrice : monthlyPrice}
+                  ₹{annual ? annualMonthlyPrice : monthlyPrice}
                 </span>
                 <span className="text-slate-400 mb-2">/month</span>
               </div>
               {annual ? (
                 <p className="text-slate-400 text-sm mt-1">
-                  Billed annually — ${annualTotal}/year
-                  <span className="ml-2 text-green-400 font-medium">Save $18</span>
+                  Billed annually — ₹{annualTotal}/year
+                  <span className="ml-2 text-green-400 font-medium">Save ₹1,800</span>
                 </p>
               ) : (
                 <p className="text-slate-500 text-sm mt-1">Billed monthly · Cancel anytime</p>
@@ -204,7 +204,7 @@ export default function PricingPage() {
               {loading ? "Redirecting to checkout..." : "Upgrade to Premium →"}
             </button>
             <p className="text-slate-500 text-xs text-center mt-3">
-              Secure payment via Stripe · Cancel anytime
+            Secure payment via Razorpay · Cancel anytime
             </p>
           </div>
         </div>
@@ -215,7 +215,7 @@ export default function PricingPage() {
             {
               icon: "🔒",
               title: "Secure Payments",
-              desc: "Payments are processed by Stripe — PCI-DSS compliant and industry-leading security.",
+              desc: "Payments are processed by Razorpay — PCI-DSS compliant and trusted by 8M+ businesses in India.",
             },
             {
               icon: "🔄",
