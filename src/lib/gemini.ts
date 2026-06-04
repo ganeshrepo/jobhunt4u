@@ -1,34 +1,74 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_PRIMARY = "llama-3.3-70b-versatile";
+const GROQ_FALLBACK = "llama-3.1-8b-instant";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+async function callGroq(model: string, prompt: string, json: boolean): Promise<string> {
+  const res = await fetch(GROQ_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      ...(json ? { response_format: { type: "json_object" } } : {}),
+    }),
+  });
 
-const PRIMARY = "gemini-2.5-flash";
-const FALLBACK = "gemini-1.5-flash";
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Groq ${res.status}: ${err?.error?.message || res.statusText}`);
+  }
 
-function isOverloaded(err: unknown): boolean {
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.includes("503") || msg.includes("overloaded") || msg.includes("high demand");
+  const data = await res.json();
+  return data.choices[0].message.content as string;
+}
+
+async function callGemini(prompt: string, json: boolean): Promise<string> {
+  const url = `${GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      ...(json
+        ? { generationConfig: { responseMimeType: "application/json" } }
+        : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Gemini ${res.status}: ${err?.error?.message || res.statusText}`);
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
 export async function geminiGenerate(
   prompt: string,
   options: { json?: boolean } = {}
 ): Promise<string> {
-  const config = options.json ? { responseMimeType: "application/json" } : undefined;
+  const json = options.json ?? false;
 
-  async function run(modelName: string) {
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      ...(config ? { generationConfig: config } : {}),
-    });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
-  }
-
+  // 1. Try Groq primary model
   try {
-    return await run(PRIMARY);
-  } catch (err) {
-    if (isOverloaded(err)) return run(FALLBACK);
-    throw err;
+    return await callGroq(GROQ_PRIMARY, prompt, json);
+  } catch (groqPrimaryErr) {
+    console.warn("Groq primary failed:", groqPrimaryErr);
   }
+
+  // 2. Try Groq fallback model
+  try {
+    return await callGroq(GROQ_FALLBACK, prompt, json);
+  } catch (groqFallbackErr) {
+    console.warn("Groq fallback failed:", groqFallbackErr);
+  }
+
+  // 3. Fall back to Gemini
+  return callGemini(prompt, json);
 }

@@ -1,18 +1,11 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { geminiGenerate } from "@/lib/gemini";
 import type { JobListing, CandidateProfile } from "./types";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function scoreJobs(
   jobs: JobListing[],
   profile: CandidateProfile
 ): Promise<JobListing[]> {
   if (!jobs.length) return jobs;
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-  });
 
   const jobSummaries = jobs
     .map(
@@ -35,10 +28,8 @@ Return ONLY valid JSON array:
 [{"index": 0, "score": 85}, {"index": 1, "score": 72}, ...]`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const scores: { index: number; score: number }[] = JSON.parse(
-      result.response.text()
-    );
+    const text = await geminiGenerate(prompt, { json: true });
+    const scores: { index: number; score: number }[] = JSON.parse(text);
     return jobs
       .map((job, i) => ({
         ...job,

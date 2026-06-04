@@ -1,16 +1,9 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { geminiGenerate } from "@/lib/gemini";
 import type { JobListing, CandidateProfile } from "./types";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function generateJobsWithGemini(
   profile: CandidateProfile
 ): Promise<JobListing[]> {
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-  });
-
   const prompt = `Generate 5 realistic job opportunities for this candidate in India.
 
 Candidate:
@@ -33,7 +26,7 @@ Return ONLY valid JSON:
   }
 ]}`;
 
-  const result = await model.generateContent(prompt);
-  const data = JSON.parse(result.response.text());
-  return (data.jobs || []).map((j: JobListing) => ({ ...j, source: "gemini" as const }));
+  const text = await geminiGenerate(prompt, { json: true });
+  const data = JSON.parse(text);
+  return (data.jobs || []).map((j: JobListing) => ({ ...j, source: "ai" as const }));
 }
