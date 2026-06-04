@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -40,11 +38,6 @@ export async function GET() {
   const keywords = (resumeResult.data.keywords as string[]) || [];
   const targetRole = profileResult.data?.target_role || "Software Engineer";
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-  });
-
   const prompt = `Analyze the skill gap for a candidate targeting: "${targetRole}"
 
 Candidate's current skills: ${keywords.join(", ")}
@@ -68,8 +61,8 @@ Rules:
 - Only include skills directly relevant to ${targetRole}`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const analysis = JSON.parse(result.response.text());
+    const text = await geminiGenerate(prompt, { json: true });
+    const analysis = JSON.parse(text);
     return NextResponse.json(analysis);
   } catch (err) {
     return NextResponse.json(

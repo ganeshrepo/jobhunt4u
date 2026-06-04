@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -29,9 +27,8 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { application_id } = await request.json();
-  if (!application_id) {
+  if (!application_id)
     return NextResponse.json({ error: "application_id is required" }, { status: 400 });
-  }
 
   const { data: app, error: appError } = await supabase
     .from("applications")
@@ -40,9 +37,8 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .single();
 
-  if (appError || !app) {
+  if (appError || !app)
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
-  }
 
   const { data: resume } = await supabase
     .from("resumes")
@@ -52,13 +48,9 @@ export async function POST(request: Request) {
     .limit(1)
     .single();
 
-  const appliedDate = new Date(app.applied_date);
-  const today = new Date();
   const daysSinceApplied = Math.floor(
-    (today.getTime() - appliedDate.getTime()) / 86400000
+    (Date.now() - new Date(app.applied_date).getTime()) / 86400000
   );
-
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `Write a professional follow-up email for a job application.
 
@@ -77,8 +69,7 @@ Write a concise, professional follow-up email (3-4 sentences) that:
 Format: Just the email body (no subject line). Start with "Dear Hiring Manager," or "Dear ${app.company} Team,"`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const body = result.response.text();
+    const body = await geminiGenerate(prompt);
     return NextResponse.json({
       subject: `Following up: ${app.job_title} Application`,
       body,

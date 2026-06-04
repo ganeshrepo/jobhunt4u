@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -38,11 +36,6 @@ export async function POST(request: Request) {
     ? `Resume Summary: ${resume.summary}\nKey Skills: ${(resume.keywords as string[]).slice(0, 15).join(", ")}\nResume (excerpt): ${(resume.parsed_text || "").substring(0, 2000)}`
     : "No resume provided — give general advice for this role.";
 
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-  });
-
   const prompt = `Generate 10 interview questions and ideal answers for this job application. Return ONLY a valid JSON array.
 
 Job: ${job_title} at ${company}
@@ -64,8 +57,8 @@ Mix: 3 Behavioral (STAR format), 3 Technical (for the specific required skills),
 Make answers specific to the candidate's resume — reference their actual skills and experience.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const questions = JSON.parse(result.response.text());
+    const text = await geminiGenerate(prompt, { json: true });
+    const questions = JSON.parse(text);
     return NextResponse.json({ questions });
   } catch (err) {
     return NextResponse.json(

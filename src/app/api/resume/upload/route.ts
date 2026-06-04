@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -98,13 +96,7 @@ export async function POST(request: Request) {
     summary: "",
   };
 
-  try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: { responseMimeType: "application/json" },
-    });
-
-    const prompt = `You are an ATS expert. Analyze this resume and return ONLY valid JSON:
+  const prompt = `You are an ATS expert. Analyze this resume and return ONLY valid JSON:
 {
   "ats_score": <number 0-100>,
   "keywords": ["skill1", "skill2"],
@@ -116,8 +108,9 @@ export async function POST(request: Request) {
 Resume:
 ${parsedText.substring(0, 8000)}`;
 
-    const result = await model.generateContent(prompt);
-    analysis = JSON.parse(result.response.text());
+  try {
+    const text = await geminiGenerate(prompt, { json: true });
+    analysis = JSON.parse(text);
   } catch (err) {
     console.error("Gemini analysis failed:", err);
     return NextResponse.json(

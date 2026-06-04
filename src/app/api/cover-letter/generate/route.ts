@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -43,8 +41,6 @@ export async function POST(request: Request) {
   const userName = profileResult.data?.full_name ||
     user.user_metadata?.full_name || "Candidate";
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
   const prompt = `Write a professional, compelling cover letter for this job application.
 
 Candidate Name: ${userName}
@@ -64,8 +60,7 @@ Write a 3-paragraph cover letter that:
 Rules: Start directly with "Dear Hiring Manager,". No placeholders. No brackets. Ready to send as-is. Professional but warm tone.`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const coverLetter = result.response.text();
+    const coverLetter = await geminiGenerate(prompt);
     return NextResponse.json({ cover_letter: coverLetter });
   } catch (err) {
     return NextResponse.json(

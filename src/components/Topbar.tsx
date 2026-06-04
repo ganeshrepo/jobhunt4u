@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Topbar({
   title,
@@ -39,9 +40,9 @@ export default function Topbar({
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <button className="relative text-slate-400 hover:text-white transition-colors">
+        <Link href="/dashboard/notifications" className="relative text-slate-400 hover:text-white transition-colors">
           <span className="text-xl">🔔</span>
-        </button>
+        </Link>
         <button
           onClick={handleLogout}
           className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-sm transition-colors"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Topbar from "@/components/Topbar";
 import ATSCard from "@/components/ATSCard";
 import { createClient } from "@/lib/supabase/client";
@@ -27,6 +28,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 export default function ResumePage() {
+  const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -99,6 +101,7 @@ export default function ResumePage() {
         file_name: file.name,
         created_at: new Date().toISOString()
       }, ...prev]);
+      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {

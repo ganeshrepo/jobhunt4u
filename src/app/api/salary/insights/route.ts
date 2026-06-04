@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 async function getSupabase() {
   const cookieStore = await cookies();
@@ -34,14 +32,9 @@ export async function GET(request: Request) {
 
   if (!role) {
     const { data: profile } = await supabase
-      .from("profiles")
-      .select("target_role")
-      .eq("id", user.id)
-      .single();
+      .from("profiles").select("target_role").eq("id", user.id).single();
     role = profile?.target_role || "Software Engineer";
   }
-
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `Provide salary insights for the role "${role}" in "${location}".
 
@@ -64,10 +57,8 @@ Return ONLY valid JSON (no markdown, no code blocks, no extra text):
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    const text = await geminiGenerate(prompt, { json: true });
+    const cleaned = text.trim().replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
     const insights = JSON.parse(cleaned);
     return NextResponse.json(insights);
   } catch (err) {

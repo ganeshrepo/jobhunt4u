@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { geminiGenerate } from "@/lib/gemini";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
@@ -46,11 +44,6 @@ export async function POST(request: Request) {
       { error: "No resume found. Upload your resume first." },
       { status: 404 }
     );
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" },
-  });
 
   const prompt = `You are a senior resume strategist and ATS optimization expert. Your task is to rewrite the candidate's resume so it is precisely tailored to the target job below — maximising ATS match score and human appeal.
 
@@ -95,14 +88,12 @@ Return ONLY valid JSON — no markdown, no explanation:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const rewritten = JSON.parse(result.response.text());
+    const text = await geminiGenerate(prompt, { json: true });
+    const rewritten = JSON.parse(text);
     return NextResponse.json(rewritten);
   } catch (err) {
     return NextResponse.json(
-      {
-        error: `AI rewrite failed: ${err instanceof Error ? err.message : String(err)}`,
-      },
+      { error: `AI rewrite failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 }
     );
   }
