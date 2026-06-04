@@ -1,6 +1,10 @@
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_PRIMARY = "llama-3.3-70b-versatile";
-const GROQ_FALLBACK = "llama-3.1-8b-instant";
+const GROQ_MODELS = [
+  "groq/compound",                              // 250/day, unlimited tokens — best quality
+  "groq/compound-mini",                         // 250/day, unlimited tokens
+  "meta-llama/llama-4-scout-17b-16e-instruct",  // 1K/day, 500K tokens/day
+  "llama-3.1-8b-instant",                       // 14.4K/day — high-volume safety net
+];
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 async function callGroq(model: string, prompt: string, json: boolean): Promise<string> {
@@ -34,9 +38,7 @@ async function callGemini(prompt: string, json: boolean): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      ...(json
-        ? { generationConfig: { responseMimeType: "application/json" } }
-        : {}),
+      ...(json ? { generationConfig: { responseMimeType: "application/json" } } : {}),
     }),
   });
 
@@ -55,20 +57,13 @@ export async function geminiGenerate(
 ): Promise<string> {
   const json = options.json ?? false;
 
-  // 1. Try Groq primary model
-  try {
-    return await callGroq(GROQ_PRIMARY, prompt, json);
-  } catch (groqPrimaryErr) {
-    console.warn("Groq primary failed:", groqPrimaryErr);
+  for (const model of GROQ_MODELS) {
+    try {
+      return await callGroq(model, prompt, json);
+    } catch (err) {
+      console.warn(`Groq model ${model} failed:`, err);
+    }
   }
 
-  // 2. Try Groq fallback model
-  try {
-    return await callGroq(GROQ_FALLBACK, prompt, json);
-  } catch (groqFallbackErr) {
-    console.warn("Groq fallback failed:", groqFallbackErr);
-  }
-
-  // 3. Fall back to Gemini
   return callGemini(prompt, json);
 }
